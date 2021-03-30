@@ -1,2 +1,2 @@
 # Miner
-Technologies used: Vue.js, Quasar, Firebase
+Technologies used: Vue.js, Quasar, Firebase, Electron.js
