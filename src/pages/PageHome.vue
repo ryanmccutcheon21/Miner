@@ -1,6 +1,6 @@
 <template>
   <q-page class="relative-position">
-    <q-scroll-area class="absolute fullscreen">
+    <q-scroll-area class="absolute full-height full-width">
     <div class="q-py-lg q-px-md row items-end q-col-gutter-md">
       <div class="col">
          <q-input 
@@ -50,7 +50,7 @@
 
       <q-item 
       v-for="mine in mines"
-      :key="mine.date"
+      :key="mine.id"
       class="q-py-md mine"
       >
         <q-item-section avatar top>
@@ -88,8 +88,9 @@
             flat 
             size="sm"
             round 
-            color="grey" 
-            icon="favorite_border" 
+            :color="mine.liked ? 'pink' : 'grey'" 
+            :icon="mine.liked ? 'favorite' : 'favorite_border'"
+            @click="toggleLiked(mine)"
             />
             <q-btn 
             @click="deleteMine(mine)"
@@ -112,6 +113,8 @@
 <script>
 import db from 'src/boot/firebase'
 import { formatDistance } from 'date-fns'
+// import func from 'vue-editor-bridge'
+// the above threw an error, found answer to resolve the issue on StackOverflow
 
 export default {
   name: 'PageHome',
@@ -120,12 +123,16 @@ export default {
       newMinerContent: '',
       mines: [
         // {
+        //   id: 'ID1',
         //   content: 'Lorem ipsum dolor sit amet consectetur adipisicing elit. Iusto tenetur ab tempore dolor enim beatae rem dicta quidem amet ad? Laudantium repudiandae nemo maxime officia. Neque amet tenetur corrupti ea.',
-        //   date: new Date()
+        //   date: new Date(),
+        //   liked: false
         // },
         // {
+        //   id: 'ID2',
         //   content: 'Lorem ipsum dolor sit amet consectetur adipisicing elit. Iusto tenetur ab tempore dolor enim beatae rem dicta quidem amet ad? Laudantium repudiandae nemo maxime officia. Neque amet tenetur corrupti ea.',
-        //   date: new Date()
+        //   date: new Date(),
+        //   liked: true
         // }
       ]
     }
@@ -134,15 +141,36 @@ export default {
     addNewMine() {
       let newMine = {
         content: this.newMinerContent,
-        date: Date.now()
+        date: Date.now(),
+        liked: false
       }
-      this.mines.unshift(newMine)
+      // this.mines.unshift(newMine)
+      db.collection('mines').add(newMine)
+      .then(docRef => {
+        console.log('Document written with ID:', docRef.id)
+      })
+      .catch(error => {
+        console.error('Error adding document:', error)
+      })
       this.newMinerContent = ''
     },
     deleteMine(mine) {
-      let dateToDelete = mine.date
-      let index = this.mines.findIndex(mine => mine.date === dateToDelete)
-      this.mines.splice(index, 1)
+      db.collection('mines').doc(mine.id).delete().then(() => {
+        console.log("Document successfully deleted!");
+      }).catch(error => {
+        console.error("Error removing document: ", error);
+      });
+    },
+    toggleLiked(mine) {
+      db.collection('mines').doc(mine.id).update({
+        liked: !mine.liked
+      })
+      .then(() => {
+        console.log('Document successfully updated')
+      })
+      .catch(error => {
+        console.log('Error updating document:', error)
+      })
     }
   },
   filters: {
@@ -152,18 +180,23 @@ export default {
   },
   mounted() {
     db.collection('mines').orderBy('date')
-    .onSnapshot((snapshot) => {
-        snapshot.docChanges().forEach((change) => {
+    .onSnapshot(snapshot => {
+        snapshot.docChanges().forEach(change => {
           let mineChange = change.doc.data()
+          mineChange.id = change.doc.id
             if (change.type === 'added') {
                 console.log('New mine: ', mineChange)
                 this.mines.unshift(mineChange)
             }
             if (change.type === 'modified') {
                 console.log('Modified mine: ', mineChange)
+                let index = this.mines.findIndex(mine => mine.id === mineChange.id)
+                Object.assign(this.mines[index], mineChange)
             }
             if (change.type === 'removed') {
                 console.log('Removed mine: ', mineChange)
+                let index = this.mines.findIndex(mine => mine.id === mineChange.id)
+                this.mines.splice(index, 1)
             }
         })
     })

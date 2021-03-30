@@ -221,7 +221,9 @@ padding
     </q-drawer>
 
     <q-page-container>
+      <keep-alive>
       <router-view />
+      </keep-alive>
     </q-page-container>
 
   </q-layout>
